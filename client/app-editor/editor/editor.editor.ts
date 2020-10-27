@@ -244,7 +244,7 @@ export const Editor = createFactory<any, EditorState>({
         if (files.length > 1) {
           // This'll log a warning server side, I think I want that (want to know how
           // often this happens)
-          die(t.e.UploadMaxOneFile + " [TyM5JYW2]");
+          die(t.e.UploadMaxOneFile + " [TyM5JYW2]");  //
         }
         this.uploadFiles(files);
       });
