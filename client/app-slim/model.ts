@@ -1794,14 +1794,15 @@ interface Rect {
 // For now: (too much config! Require cust nav to be on row 1 always? and
 // always show page title, when has scrolled downn. Then can remove most of this.)
 interface BrowserCode {
-  topbarAtTopLogo?: string;   // RENAME to  topbarStaticLogo  or tbStcLgo .
+  topbarAtTopLogo?: string;   // RENAME to  topbarStaticLogo  or tbStcLogo .
   topbarAtTopNav?: string;    // tbStcNav
   // Change to a number?  topbarOneRowMinWidthPx [cust_nav_menu]
   // or  topbar2RowsWidthPx  tb2RowsMaxWidthPx  or tb2RowsPx
+  // or:  topbarMdPx?: Nr;   medium wide min width
   topbarAtTopNav2Rows?: boolean;  // tbStcNv2: boolean | string
   topbarAtTopNavLine2?: string;
   // Shows current page title.  SHOULD be to true always, soon. DO_AFTER 2020-08-12
-  topbarBitDownShowTitle?: boolean;
+  topbarBitDownShowTitle?: boolean;  // RENAME to tbFxdPgTl when FiXeD, show PaGe TitLe
   topbarBitDownLogo?: string;  // RENAME to topbarFixedLogo  or tbFxdLgo
   topbarBitDownNav?: string;
   topbarBitDownNav2Rows?: boolean;
