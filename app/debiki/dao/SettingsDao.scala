@@ -47,28 +47,33 @@ trait SettingsDao {
   }
 
 
-  def saveSiteSettings(settingsToSave: SettingsToSave, byWho: Who): Unit = {
+  def saveSiteSettings(settingsToSave: SettingsToSave, byWho: Who): U = {
     // COULD test here that settings are valid? No inconsistencies?
 
     throwBadRequestIf(settingsToSave.orgFullName.exists(_.isEmptyOrContainsBlank),
       "EdE5KP8R2", "Cannot clear the organization name")
 
-    // There're 20 kb db constraints.
-    val maxHtmlLength = 19 * 1000
+    // There're 50 kb db constraints, but 50 is a bit much? Let's say 30.
+    // One community has two detailed 10 kb SVG logos — one for wide, one
+    // for mobile — so they need 20 kb  (or to move logos to separate files).
+    val maxHtmlLength = 30 * 1000
 
-    def checkLen(name: String, getter: SettingsToSave => Option[Option[String]]) {
+    def checkLen(name: St, getter: SettingsToSave => Opt[Opt[St]]) {
       val anyOptValue = getter(settingsToSave)
       throwBadRequestIf(anyOptValue.exists(_.exists(_.length > maxHtmlLength)),
             "TyE406RKTP245", s"Too long: $name")
     }
 
-    checkLen("headStylesHtml", _.headStylesHtml)
-    checkLen("headScriptsHtml", _.headScriptsHtml)
-    checkLen("startOfBodyHtml)", _.startOfBodyHtml)
-    checkLen("endOfBodyHtml)", _.endOfBodyHtml)
-    checkLen("logoUrlOrHtml", _.logoUrlOrHtml)
-    checkLen("headerHtml", _.headerHtml)
-    checkLen("footerHtml", _.footerHtml)
+    checkLen("headStylesHtml", _.headStylesHtml)    // settings_c_headstyleshtml_len
+    checkLen("headScriptsHtml", _.headScriptsHtml)  // settings_c_headscriptshtml_len
+    checkLen("startOfBodyHtml)", _.startOfBodyHtml) // settings_c_startofbodyhtml_len
+    checkLen("endOfBodyHtml)", _.endOfBodyHtml)     // settings_c_endofbodyhtml_len
+    checkLen("logoUrlOrHtml", _.logoUrlOrHtml)      // settings_c_logourlorhtml_len
+    checkLen("headerHtml", _.headerHtml)  // settings_c_headerhtml_len
+    checkLen("footerHtml", _.footerHtml)  // settings_c_footerhtml_len
+
+    // ? settings_c_navconf_len
+    // ? settings_c_sociallinkshtml_len
 
     throwBadRequestIf(
           settingsToSave.navConf.exists(_.exists(_.toString().length > maxHtmlLength)),
@@ -91,14 +96,14 @@ trait SettingsDao {
       lazy val adminsAndIdentities: Seq[(User, Seq[Identity])] =
         admins.map(admin => admin -> tx.loadIdentities(admin.id))
 
-      def turnsOff(getEnabled: EffectiveSettings => Boolean) =
+      def turnsOff(getEnabled: EffectiveSettings => Bo): Bo =
         !getEnabled(newSettings) && getEnabled(oldSettings)
 
-      def turnsOn(getEnabled: EffectiveSettings => Boolean) =
+      def turnsOn(getEnabled: EffectiveSettings => Bo): Bo =
         getEnabled(newSettings) && !getEnabled(oldSettings)
 
       // Prevent admins from accidentally locking themselves or other admins out.
-      def throwIfLogsInWith(loginMethodName: String): Unit = {
+      def throwIfLogsInWith(loginMethodName: St): U = {
         val loginMethodLowercase = loginMethodName.toLowerCase
         for {
           (admin, identities) <- adminsAndIdentities
