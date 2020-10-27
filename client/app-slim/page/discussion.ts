@@ -321,13 +321,23 @@ export const TitleBodyComments = createComponent({
     const helpMessageAboveTitle = helpMessageType === HelpTypePageClosed ? null : anyHelpMessage;
     const helpMessageBelowTitle = helpMessageType === HelpTypePageClosed ? anyHelpMessage : null;
 
-    // For now, feature flag. Later, always, unless unlisted.  [dbl_tb_ttl]
-    const isUnlisted = _.some(page.ancestorsRootFirst, a => a.unlistCategory); // dupl [305RKSTDH2]
+    // Some dupl code: [305RKSTDH2]
+    // xx rm comment: For now, feature flag. Later, always, unless unlisted.  [dbl_tb_ttl]
+    const isUnlisted = _.some(page.ancestorsRootFirst, a => a.unlistCategory);
     const isUnlistedSoHideCats = isUnlisted && !isStaff(me);
+    const hasAncestorsCats = nonEmpty(page.ancestorsRootFirst);
     const showCategories =
-            !isUnlistedSoHideCats && !!(store.settings.navConf || {}).topbarAtTopLogo;
+            hasAncestorsCats &&
+            !isUnlistedSoHideCats && // !!(store.settings.navConf || {}).topbarAtTopLogo;
+            settings_showCategories(store.settings, me);
 
-    const categories = showCategories &&
+    const isSectionPage = isSection(pageRole);
+    let catsOrHomeLink;
+    if (isSectionPage) {
+      // Then, no ancestors or home link to show — we're on the index page already.
+    }
+    else if (showCategories) {
+      catsOrHomeLink =
         // Dupl code [305SKT026]
         r.ol({ className: 'esTopbar_ancestors s_Tb_Pg_Cs' },
           page.ancestorsRootFirst.map((ancestor: Ancestor) => {
@@ -340,10 +350,22 @@ export const TitleBodyComments = createComponent({
                       to: ancestor.path },
                     ancestor.title)));
           }));
+      }
+      else {
+        // Show a Home link, so there's somewhere to return to. Dupl code [HOMELN495]
+        const mainSiteSection: SiteSection = store_mainSiteSection(store);
+        const homePath = mainSiteSection.path;
+        catsOrHomeLink =
+            r.div({ className: 's_Tb_Pg' },
+              r.ol({ className: 'esTopbar_ancestors s_Tb_Pg_Cs' },
+                r.li({},
+                  Link({ className: 'esTopbar_ancestors_link btn', to: homePath }, t.Home))));
+      }
+
 
     return (
       r.div({ className: anyAboutCategoryClass },
-        categories,
+        catsOrHomeLink,
         helpMessageAboveTitle,
         anyAboutCategoryTitle,
         r.div({ className: 'debiki dw-page', id: 't_PageContent' },

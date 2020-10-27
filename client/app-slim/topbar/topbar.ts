@@ -200,48 +200,64 @@ export const TopBar = createComponent({
     // if the open-sidebars buttons were suddenly gone?
     const hideSidebarBtns = page_isInfoPage(pageRole) && !me.isLoggedIn;
 
-    // ------- Forum --> Category --> Sub Category
+    // ------- Page title and categories
+
+    // When we've scrolled down, so the in-page title [dbl_tb_ttl]
+    // and category breadcrumbs are no longer visible (they've scrolled up and away),
+    // we show the page title in the topbar. And categories too, unless topic unlisted.
+    // (So knows what topic the page is about, if leaving the browser tab
+    // and returning "much later".)
+
+    let CatsAndTitle = () => null;
 
     let hasTitle = false;
     let noCatsMaybeTitle = false;
 
     // For now, feature flag. Later, only if fixed topbar — else, show in page.  [dbl_tb_ttl]
-    const titleCatsShownInPageInstead = !!navConf.topbarAtTopLogo && !isBitDown;
+    // const titleCatsShownInPageInstead = !!navConf.topbarAtTopLogo && !isBitDown;
 
-    let TitleCatsTags = () => null;
-    const shallShowAncestors = // not needed:  !titleCatsShownInPageInstead &&
-            settings_showCategories(store.settings, me) && !isSectionPage;
-    const thereAreAncestors = nonEmpty(page.ancestorsRootFirst);
-    const isUnlisted = _.some(page.ancestorsRootFirst, a => a.unlistCategory);  // dupl [305RKSTDH2]
+    // Some dupl code: [305RKSTDH2]
+    // A new category permission: SeeUnlistedTopics? For now:  [staff_can_see]
+    const isUnlisted = _.some(page.ancestorsRootFirst, a => a.unlistCategory);
     const isUnlistedSoHideCats = isUnlisted && !isStaff(me);
+    const hasAncestorsCats = nonEmpty(page.ancestorsRootFirst);
+    const showCategories =
+            hasAncestorsCats &&
+            !isUnlistedSoHideCats &&
+            isBitDown &&
+            settings_showCategories(store.settings, me) &&
+            // Section pages have no ancestors — instead, they list topics,
+            // categores, sub cats.
+            !isSectionPage;
 
-    const anyUnsafeTitleSource: string | U = page.postsByNr[TitleNr]?.unsafeSource;
-    const showTitleInTopbar = !isUnlistedSoHideCats && (
-        // Before we've scrolled down, the title is visible in the page contents instead.
-        navConf.topbarBitDownShowTitle &&   // <— temp feature flag, later, always true
-              isBitDown && anyUnsafeTitleSource);
+    const anyUnsafeTitleSource: St | U = page.postsByNr[TitleNr]?.unsafeSource;
+    const showTitle = ( //   !isUnlistedSoHideCats && (
+            // Before we've scrolled down, the title is visible in the page contents instead.
+            //navConf.topbarBitDownShowTitle &&   // <— temp feature flag, later, always true
+            isBitDown && anyUnsafeTitleSource);
 
-    const PageTitleIfFixed = () => !showTitleInTopbar ? null :
+    const PageTitleIfFixed = () => !showTitle ? null :
         r.div({ className: 's_Tb_Pg_Ttl' }, anyUnsafeTitleSource);  // [title_plain_txt]
 
-    // A new category permission: SeeUnlistedTopics? For now:  [staff_can_see]
-    const showAlthoughUnlisted = isStaff(me);
-
+    /*
     if (!showTitleInTopbar // <—— BUG remove?  incorrectly cancels isUnlisted
             && ((isUnlisted && !showAlthoughUnlisted) || isSectionPage)
             && !isEmbComments) {
-      // Show no ancestor categories.
       // But should show title, also if unlisted — not impl.
+              */
+    if (!showCategories && !showTitle) {
+      // Noting to do.
     }
-    else if (titleCatsShownInPageInstead) {
-      // Title shown here:  [dbl_tb_ttl]  in discussion.ts, instead.
-      // Later, this'll always be the case, until scrolls down, then title shown
-      // in fixed topbar.
-    }
-    else if (thereAreAncestors && shallShowAncestors) {
+    //else if (titleCatsShownInPageInstead) {
+    //  // Title shown here:  [dbl_tb_ttl]  in discussion.ts, instead.
+    //  // When one scrolls down, that title no longer visible — then, title shown in
+    //  // fixed topbar. (So knows what topic the page is about, if leaving the browser tab
+    //  // and returning "much later".)
+    //}
+    else if (showCategories) {
       const anyTitle = PageTitleIfFixed();
       hasTitle = !!anyTitle;
-      TitleCatsTags = () =>
+      CatsAndTitle = () =>
           r.div({ className: 's_Tb_Pg' },
             // RENAME  esTopbar_ancestors  to  s_Tb_Pg_Cs
             // Dupl code [305SKT026]
@@ -259,11 +275,12 @@ export const TopBar = createComponent({
             anyTitle);
     }
     else if (
-        // Add a Home link 1) if categories hidden (!shallShowAncestors), and 2) for
+        // Add a Home link 1) if categories hidden (!shallShowAncestors, so we didn't
+        // enter the if branch above), and 2) for
         // direct messages, which aren't placed in any category (!thereAreAncestors),
         // and 3) for embedded comments, if categories disabled, so can still return to
         // discussion list page.
-        thereAreAncestors || page.pageRole === PageRole.FormalMessage ||
+        hasAncestorsCats || page.pageRole === PageRole.FormalMessage ||
         page.pageRole === PageRole.PrivateChat || isEmbComments) {
       const mainSiteSection: SiteSection = store_mainSiteSection(store);
       const homePath = mainSiteSection.path;
@@ -272,7 +289,8 @@ export const TopBar = createComponent({
       hasTitle = !!anyTitle;
       noCatsMaybeTitle = isSectionPage;
       
-      TitleCatsTags = () =>
+      // Dupl code [HOMELN495]
+      CatsAndTitle = () =>
           r.div({ className: 's_Tb_Pg' },
             showHomeLink && r.ol({ className: 'esTopbar_ancestors s_Tb_Pg_Cs' },
               r.li({},
@@ -376,7 +394,7 @@ export const TopBar = createComponent({
 
 
     // ------- Tools button
-    // Placed here so it'll be available also when one has scrolled down a bit.
+    // Placed in the topbar, so available also when one has scrolled down a bit.
 
     // (Is it ok to call another React component from here? I.e. the page tools dialog.)
     const toolsButton = !isStaff(me) || !store_shallShowPageToolsButton(store) ? null :
@@ -393,22 +411,7 @@ export const TopBar = createComponent({
           render: SearchForm });
 
 
-    // ------- Forum title
-
-    // The reason for this title-in-topbar was that I wanted the forum title
-    // and MyMenu to be in the same <div>, so the browser prevents them
-    // from overlapping, e.g. by line wrapping.
-    // But currently (Aug 2020) on narrow screens, the forum title & topbar contents
-    // don't look nice / well-aligned anyway.
-    // So, it's better to remove the foum title from here (the topbar) and
-    // instead include in the page & posts below, as done for other normal
-    // topics. (Those topics show ancestor categories in the topbar,
-    // so then there's something there, not just emptiness — then, less need
-    // to move the title up into the topbar.)
-    // Can instead use  position: relative,  top: -NN,  on wider displays,
-    // to move the forum title up into the topbar.
-    // Togethre with max-width: calc(100% - 350px) so always space for MyMenu.
-    // Sth like that.
+    // ------- Custom site logo
 
     const siteLogoHtml =
         isBitDown && navConf.topbarBitDownLogo || navConf.topbarAtTopLogo;
@@ -418,13 +421,13 @@ export const TopBar = createComponent({
             className: 's_Tb_CuLogo s_Cu',
             dangerouslySetInnerHTML: { __html: siteLogoHtml }});
 
-    let pageTitle;  // REMOVE, use instead: [dbl_tb_ttl] with larger font if on forum page.
-    if (!siteLogoTitle && pageRole === PageRole.Forum && !autoPageType
-          && !navConf.topbarBitDownShowTitle) {
-      pageTitle =
-          r.div({ className: 'dw-topbar-title' },
-            debiki2.page.Title({ store, hideButtons: this.state.fixed }));
-    }
+    //let pageTitle;  // REMOVE, use instead: [dbl_tb_ttl] with larger font if on forum page.
+    //if (!siteLogoTitle && pageRole === PageRole.Forum && !autoPageType
+    //      && !navConf.topbarBitDownShowTitle) {
+    //  pageTitle =
+    //      r.div({ className: 'dw-topbar-title' },
+    //        debiki2.page.Title({ store, hideButtons: this.state.fixed }));
+    //}
 
 
     // ------- Custom title & Back to site button
@@ -463,10 +466,10 @@ export const TopBar = createComponent({
       customTitle = r.h1({ className: 'esTopbar_custom_title' }, customTitle);
     }
 
-    // @ifdef DEBUG
-    // Either we're on a page with a title, or we're in some API section.
-    dieIf(pageTitle && customTitle, 'TyE06RKTD6');
-    // @endif
+    // // @ifdef DEBUG
+    // // Either we're on a page with a title, or we're in some API section.
+    // dieIf(pageTitle && customTitle, 'TyE06RKTD6');
+    // // @endif
 
     if (this.props.showBackToSite || backToSiteButton) {
       backToSiteButton = LinkUnstyled({ className: 's_Tb_Ln s_Tb_Ln-Bck btn icon-reply',
@@ -523,7 +526,7 @@ export const TopBar = createComponent({
 
     const topbarRow2 = use2Rows &&
         rFragment({},
-          navConf.topbarBitDownTitleRow2 && TitleCatsTags(),
+          navConf.topbarBitDownTitleRow2 && CatsAndTitle(),
           custNavRow2,
           r.div({ className: 's_Tb_MyBs' },
             // Signup and login buttons needed here, or Reactjs hydration fails.
@@ -666,10 +669,10 @@ export const TopBar = createComponent({
           anyMaintWorkMessage,
           backToGroups,
           backToSiteButton),
-        pageTitle,    // [dbl_tb_ttl]
+        //pageTitle,    // [dbl_tb_ttl]
         // Incl also if custNavRow2 defined — otherwise React's hydration won't work.
         custNavRow1,
-        TitleCatsTags(),  // [dbl_tb_ttl]
+        CatsAndTitle(),  // [dbl_tb_ttl]
         searchAndMyButtonsRow1);
 
     let fixItClass = ' s_Tb-Stc';  // static
