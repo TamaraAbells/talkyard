@@ -276,6 +276,7 @@ function loadCommentsCreateEditor() {
 
   Bliss.start(loadingCommentsElem, commentsElem);
 
+  // color ... this div?
   editorWrapper = Bliss.create('div', {
     id: 'ed-editor-wrapper',
     style: {
