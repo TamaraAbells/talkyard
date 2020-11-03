@@ -33,6 +33,7 @@ interface TestSettings {
   block3rdPartyCookies?: boolean;
   reuseOldSite?: boolean;
   deleteOldSite: boolean;
+  randomLocalHostname?: boolean;
   localHostname?: string; // must start with 'e2e-test-' (see settings.ts)
   testLocalHostnamePrefix: string;
   testEmailAddressPrefix: string;
@@ -54,6 +55,7 @@ interface TestSettings {
   only3rdParty?: string;
   grep: string;
   only: string;
+  isInProjBaseDir?: boolean;
   browserName: 'firefox' | 'chrome';
   gmailEmail?: string;
   gmailPassword?: string;

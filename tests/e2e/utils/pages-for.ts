@@ -30,6 +30,7 @@ import settings = require('./settings');
 import server = require('./server');
 import utils = require('../utils/utils');
 import c = require('../test-constants');
+import IsWhere = require('../test-types');
 
 
 //  RENAME  this file to ty-e2e-test-browser.ts but wait a bit,

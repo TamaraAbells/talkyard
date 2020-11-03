@@ -30,11 +30,13 @@ let wasError = false;
 // So cannot look at the file names, to determine which capabilities we need.
 // Instead, we need to use the command line args, i.e. `settings` (USESTNGS).
 
-let specs = ['./specs/**/*.ts'];
+const specsPathPrefix = settings.isInProjBaseDir ? './tests/e2e' : '.';
+
+let specs = [`${specsPathPrefix}/specs/**/*.ts`];
 
 // This now not needed? wdio v6 has  --spec
 if (settings.only) {
-  specs = [`./specs/**/*${settings.only}*.ts`];
+  specs = [`${specsPathPrefix}/specs/**/*${settings.only}*.ts`];
 }
 
 
@@ -44,7 +46,16 @@ if (settings.only) {
 // --------------------------------------------------------------------
 
 
-let browserNameAndOpts: any = {
+interface BrowserNameAndOpts {
+  browserName: string;
+  acceptInsecureCerts?: boolean;
+  'goog:chromeOptions'?: string;
+  browserVersion?: string;
+  platformName?: string;
+  'sauce:options'?: any;
+}
+
+let browserNameAndOpts: BrowserNameAndOpts = {
   browserName: settings.browserName,
 };
 
@@ -52,7 +63,7 @@ let browserNameAndOpts: any = {
 // So don't. Webdriver.io/Selenium bug? (April 29 2018)
 if (browserNameAndOpts.browserName === 'chrome'
         || browserNameAndOpts.browserName.toLowerCase() === 'chromium') {
-  const opts: any = {
+  const opts0 = {
     args: [
       '--disable-notifications',
 
@@ -74,7 +85,7 @@ if (browserNameAndOpts.browserName === 'chrome'
       //'profile.password_manager_enabled': false,
       //credentials_enable_service: false,
       //password_manager_enabled: false,
-    },
+    } as any,
     //profile: {
     //  password_manager_enabled: false
     //},
@@ -88,6 +99,7 @@ if (browserNameAndOpts.browserName === 'chrome'
     //   extensions_to_open: '',
     // },
   };
+  const opts: any = opts0 as any;
   if (settings.block3rdPartyCookies) {
     // Seems `profile.block_third_party_cookies` isn't documented anywhere on the Internet,
     // but you'll find it in your Chrome preferences file. On Linux, it can be in:
@@ -190,7 +202,7 @@ const config: WebdriverIO.Config = {
   // https://docs.saucelabs.com/reference/platforms-configurator
 
   capabilities: [
-    browserNameAndOpts
+    browserNameAndOpts as any
     // For Firefox to work, you need to make http://wildcard.localhost addresses work
     // (where 'wildcard' can be anything).
     // See: <../../../docs/wildcard-dot-localhost.md>.
