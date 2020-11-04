@@ -30,7 +30,12 @@ import settings = require('./settings');
 import server = require('./server');
 import utils = require('../utils/utils');
 import c = require('../test-constants');
-import IsWhere = require('../test-types');
+
+// Required with  transpileOnly: true,
+// but without, this error:
+//     utils/pages-for.ts(33,26): error TS2306:
+//        File 'tests/e2e/test-types.ts' is not a module.
+//import IsWhere = require('../test-types');
 
 
 //  RENAME  this file to ty-e2e-test-browser.ts but wait a bit,

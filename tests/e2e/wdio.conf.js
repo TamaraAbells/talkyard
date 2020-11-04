@@ -1,9 +1,16 @@
+// Loads Ty's Webdriverio config — which is in Typescript: wdio.conf.ts,
+// so we need ts-node:
 
 // Before:  (what did this do? Who cares)
-// require('ts-node/register')
+//require('ts-node/register')
+
 
 require('ts-node').register({
-  transpileOnly: true,
+  // transpileOnly causes errors like:
+  //   > ReferenceError: PostType is not defined
+  //   > at Context.<anonymous> ([...]/move-posts-other-page.2browsers.test.ts:74:60)
+  // why?
+  //transpileOnly: true,
 
   // Help ts-node find the tsconfig.json for the e2e tests — that config file
   // specifies target: 'ES2017', otherwise, with ES2015 (the default),
@@ -18,6 +25,7 @@ require('ts-node').register({
   //
   dir: './tests/e2e/',
 });
+
 
 // Include the '.ts' suffix, otherwise apparently any '.js' file with the same
 // name (excl suffix) gets loaded.

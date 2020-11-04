@@ -612,7 +612,6 @@ const config: WebdriverIO.Config = {
 
 
 
-//  DUPL CODE for now [DUPWDIOCNF]
 // --------------------------------------------------------------------
 //  Static file server?
 // --------------------------------------------------------------------
@@ -629,10 +628,11 @@ const config: WebdriverIO.Config = {
 
 if (settings.staticServer8080) {
   // https://webdriver.io/docs/static-server-service.html
+  console.log(`\n\nCWD: ${process.cwd()}\n`);
   const server: WebdriverIO.ServiceEntry = ['static-server', {
     port: 8080,  // note: eighty-eighy
     folders: [
-      { path: './target/', mount: '/' }],
+      { path: 'target/', mount: '/' }],
   }];
   console.log(`I'll start a static server:  ${JSON.stringify(server)}`)
   config.services.push(server);
@@ -640,10 +640,11 @@ if (settings.staticServer8080) {
 
 if (settings.staticServerGatsbyNew8000) {
   // TODO use port 8081 instead of colliding with 8000, so can run in prallel.
+  console.log(`\n\nCWD: ${process.cwd()}\n`);
   const server: WebdriverIO.ServiceEntry = ['static-server', {
     port: 8000, // eight thousand
     folders: [
-      { path: '../../modules/gatsby-starter-blog/public/', mount: '/' }],
+      { path: 'modules/gatsby-starter-blog/public/', mount: '/' }],
   }];
   console.log(`I'll start a static server for Gatsby:  ${JSON.stringify(server)}`)
   config.services.push(server);
@@ -651,10 +652,11 @@ if (settings.staticServerGatsbyNew8000) {
 
 if (settings.staticServerGatsbyOld8000) {
   // TODO use port 8082 instead of colliding with 8000
+  console.log(`\n\nCWD: ${process.cwd()}\n`);
   const server: WebdriverIO.ServiceEntry = ['static-server', {
     port: 8000, // eight thousand
     folders: [
-      { path: '../../modules/gatsby-starter-blog-ed-comments-0.4.4/public/', mount: '/' }],
+      { path: 'modules/gatsby-starter-blog-ed-comments-0.4.4/public/', mount: '/' }],
   }];
   console.log(`I'll start a static server for Gatsby, old:  ${JSON.stringify(server)}`)
   config.services.push(server);
