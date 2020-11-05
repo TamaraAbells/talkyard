@@ -18,9 +18,13 @@
 # Listening to modify, delete, move, create seems better than  close_write?
 # close_write doesn't necessarily mean the file was modified.
 #
+# Have inotifywait exit after a few seconds, because otherwise it tends to stay
+# alive forever, after the parent 'while true; do ...' has
+# exited.
+# Hmm! But then  make  runs again and logs annoying messages. Skip: --timeout 3
+#
 watch: watch-debug_asset_bundles
 watch-debug_asset_bundles:
-	s/d run --rm nodejs yarn install ;\
 	while true; do \
 	  make debug_asset_bundles ;\
 	  inotifywait -q -r -e modify -e create -e delete -e move \

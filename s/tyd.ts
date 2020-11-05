@@ -2,7 +2,7 @@ import * as _  from 'lodash';
 import * as minimist from 'minimist';
 import Launcher from '@wdio/cli'
 import * as glob from 'glob';
-import { die, dieIf, logMessage, logMessageIf, logErrorIf, logUnusual
+import { die, dieIf, logMessage, logMessageIf, logError, logErrorIf, logUnusual
             } from '../tests/e2e/utils/log-and-die';
 import { ChildProcess, spawn as _spawnAsync, spawnSync as _spawnSync } from 'child_process';
 
@@ -77,6 +77,7 @@ function spawnInForeground(cmdMaybeArgs: St, anyArgs?: St[]): ExitCode {
 const cmdLineArgs: any = minimist(process.argv.slice(2));
  
 const mainCmd = process.argv[2];
+let mainCmdIsOk: U | true;
 const manySubCmds = process.argv.slice(3); // drop the main command
 const subCmd = manySubCmds[0];
 
@@ -90,7 +91,7 @@ if (mainCmd === 'ps') {
 }
 
 
-if (mainCmd === 'logslive') {
+if (mainCmd === 'l' || mainCmd === 'logslive') {
   spawnInForeground('docker-compose logs -f --tail 0');
   process.exit(0);
 }
@@ -120,21 +121,65 @@ if (mainCmd === 'justwatch') {
 }
 
 
-if (mainCmd === 'watchup') {
-  const watchChildProcess = spawnInBackground('make watch');
-  // RACE BUG when starting, we'll run  logs -f  too soon,
-  // before any containers have started. Seems it then exits and
-  // shuts down  watch & the log tailing.
-  spawnInBackground('docker-compose up -d');
+if (mainCmd === 'u' || mainCmd === 'watchup') {
+  mainCmdIsOk = true;
+
+  // First, update assets bundles once in the foreground — it's annoying
+  // if instead that's done while the server is starting, because then the server
+  // might decide to stop and restart just to pick up any soon newly built bundles?
+  // (Also, log messages from make and the app server get mixed up with each other.)
+  spawnInForeground('docker-compose run --rm nodejs yarn install');
+  spawnInForeground('make debug_asset_bundles');
+
+  // Run `up -d` in foreground, so we won't start the `logs -f` process too soon
+  // — that process would exit, if `up -d` hasn't yet started any containers.
+  spawnInForeground('docker-compose up -d');
+
+  // Now time to start rebuilding asset bundles in the background, when needed.
+  const rebuildAssetsCmd = 'make watch';
+  const watchChildProcess = spawnInBackground(rebuildAssetsCmd);
+
+  const watchExitedPromise = new Promise<ExitCode>(function(resolve, reject) {
+    watchChildProcess.once('exit', function(exitCode: ExitCode) {
+      (makeShouldExit ? logMessage : logError)(
+            `'${rebuildAssetsCmd}' exited, code: ${exitCode}`);
+      resolve(exitCode);
+    });
+  })
+
+  let makeShouldExit = false;
+
+  // Don't exit immetiately on CTRL+C — first, stop  make watch.
+  // But!  'make watch' uses inotifywait, which con't stop :-(
+  // Maybe switch to https://github.com/paulmillr/chokidar  instead?
+  // And watch client/  and app/  and ty-dao-rdb  and ty-core, call Make
+  // on any change?
+  process.on('SIGINT', function() {
+    logMessage(`Caught SIGINT.`);
+    // We'll continue after  spawnInForeground() below. (Need do nothing here.)
+  });
+
+  // Show logs until CTRL+C.
+  // (There's also:  process.on('SIGINT', function() { ... });
   spawnInForeground('docker-compose logs -f --tail 0');
+
+  logMessage(`Stopping '${rebuildAssetsCmd}' ...`);
+  makeShouldExit = true;
   watchChildProcess.kill();
-  // But don't shut down the Ty server? That'd be annoying?
-  // For that, use s/tyd kill
-  process.exit(0);
+
+  setTimeout(function() {
+    logError(`'${rebuildAssetsCmd}' takes long to exit, I'm quitting anyway, bye.`);
+    process.exit(0);
+  }, 9000);
+
+  watchExitedPromise.finally(function() {
+    logMessage(`Bye. Server maybe still running.`);
+    process.exit(0);
+  })
 }
 
 
-if (mainCmd === 'kill') {
+if (mainCmd === 'k' || mainCmd === 'kill') {
   spawnInForeground('make dead');
   process.exit(0);
 }
@@ -160,16 +205,10 @@ if (mainCmd === 'cleane2elogs') {
 }
 
 
-if (mainCmd !== 'e2e') {
-  console.error(`Werid main command: ${mainCmd}. Error. Bye.  [TyE30598256]`);
-  process.exit(1);
-}
-
-
-
+if (mainCmd === 'e2e') {
 
 // -----------------------------------------------------------------------
-//  E2E Tests
+//  E2E Tests  (move to other file?)
 // -----------------------------------------------------------------------
 
 
@@ -210,21 +249,27 @@ async function runE2eTests(): Promise<ExitCode> {
   // fork() with: { cwd: process.cwd(), env: runnerEnv, execArgv: this.execArgv },
   // see: ../node_modules/@wdio/local-runner/build/worker.js
 
-  async function withSpecsMatching(testTypes: St[], run: (specs: St[]) =>
+  async function withSpecsMatching(testTypes: St[] | St[][], run: (specs: St[]) =>
           Promise<ExitCode>) {
 
-    dieIf(!testTypes?.length, 'TyE38590RTK');
-    let specsNow = allMatchingSpecs;
-    for (let tt of testTypes) {
-      // Dupl filter (987RM29565W)
-      specsNow = specsNow.filter((fileName: St) => {
-        // '!' and '0' (like, Nothing, Not) means exclude those tests.
-        // (0 is simpler to type on the command line, need not be escaped).
-        const shallInclude = tt[0] !== '0' && tt[0] !== '!';
-        const pattern = shallInclude ? tt : tt.substr(1, 999);  // drop any '!'
-        const matchesType = fileName.indexOf(pattern) >= 0;
-        return matchesType === shallInclude;
-      });
+    if (_.isString(testTypes[0])) {
+      testTypes = [testTypes as St[]];
+    }
+    dieIf(!testTypes?.[0]?.length, 'TyE38590RTK');
+    let specsNow = [];
+    for (let tts of testTypes) {
+      let moreSpecs = allMatchingSpecs;
+      for (let tt of tts) {
+        // Dupl filter (987RM29565W)
+        moreSpecs = moreSpecs.filter((fileName: St) => {
+          // '!' and '0' (like, Nothing, Not) means exclude those tests.
+          const shallInclude = tt[0] !== '0' && tt[0] !== '!';
+          const pattern = shallInclude ? tt : tt.substr(1, 999);  // drop any '!'
+          const matchesType = fileName.indexOf(pattern) >= 0;
+          return matchesType === shallInclude;
+        });
+      }
+      specsNow = [...specsNow, ...moreSpecs];
     }
     const num = specsNow.length;
     if (num >= 1) {
@@ -296,14 +341,9 @@ async function runE2eTests(): Promise<ExitCode> {
     // so that  sh   gets "...\n..." instead of a real line break.
     const specsOnePerLine = specs.join('\\n');
     return `echo "${specsOnePerLine}" ` +
-              `| node_modules/.bin/wdio  tests/e2e/wdio.conf.js  ${wdioArgs}`;
+              `| node_modules/.bin/wdio  tests/e2e/wdio.conf.js  --retry 3  ${wdioArgs}`;
   }
 
-  const skipAlways = ['!UNIMPL', '!-impl.', '!imp-exp-imp-exp-site'];
-  const skipEmbAndAlways = ['!emb-', '!embedded-', ...skipAlways]
-  const skip2And3Browsers = ['!.2br', '!.3br'];
-
-  let next = [...skip2And3Browsers, ...skipEmbAndAlways];
 
   // TODO   Don't run magic time tests in parallel — they mess up the
   // time for each other.
@@ -333,6 +373,13 @@ async function runE2eTests(): Promise<ExitCode> {
     }
   }
 
+
+  const skipAlways = ['!UNIMPL', '!-impl.', '!imp-exp-imp-exp-site'];
+  const skipEmbAndAlways = ['!emb-com', '!embcom', '!embedded-', ...skipAlways]
+  const skip2And3Browsers = ['!.2br', '!.3br'];
+
+  let next: St[] | St[][] = [...skip2And3Browsers, ...skipEmbAndAlways];
+
   await withSpecsMatching(next, async (specs: St[]): Promise<ExitCode> => {
     //const pipeSpecsToWdio__old =
     //        `echo "${ specs.join('\\n') }" ` +
@@ -361,8 +408,12 @@ async function runE2eTests(): Promise<ExitCode> {
   });
 
 
-  next = ['embedded-', '!no-cookies', '!gatsby', '!embedded-forum',
+  const skipUnusualEmb = ['!no-cookies', '!gatsby', '!embedded-forum',
           ...skip2And3Browsers, ...skipAlways];
+  // Accidentally different file names.
+  next = [['embedded-', ...skipUnusualEmb],
+          ['embcom.', ...skipUnusualEmb],
+          ['emb-com.', ...skipUnusualEmb]];
 
   await withSpecsMatching(next, async (specs: St[]): Promise<Nr> => {
     // Note: 8080 eighty eighty.
@@ -377,8 +428,8 @@ async function runE2eTests(): Promise<ExitCode> {
   });
 
 
-  next = ['embedded-', 'no-cookies', '!gatsby', '!embedded-forum',
-          ...skip2And3Browsers, ...skipAlways];
+  next = [['embedded-', 'no-cookies', '!gatsby', '!embedded-forum',
+          ...skip2And3Browsers, ...skipAlways]];
 
   await withSpecsMatching(next, async (specs: St[]): Promise<Nr> => {
     startStaticFileServer(8080, 'target/');
@@ -445,3 +496,10 @@ runE2eTests().then((code) => {
   console.error(`Error starting tests [TyEE2ESTART]`, error);  // error.stacktrace ?
   process.exit(1);
 });
+
+
+}
+else if (!mainCmdIsOk) {
+  console.error(`Werid main command: ${mainCmd}. Error. Bye.  [TyE30598256]`);
+  process.exit(1);
+}
