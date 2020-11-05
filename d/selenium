@@ -6,10 +6,10 @@
 dash_debug="-debug"
 browser_name="chrome"
 container_name="tye2ebrowser"
-
-image_version="3.141.59-20200826"
-# docker pull selenium/standalone-chrome:85.0-20200907 — then would need
+image_version="3.141.59-20201010"
+# not the same as:  selenium/standalone-chrome:86.0-20201009 — then would need
 # Chromedriver too in another Docker container?
+# This one?:  selenium/standalone-chrome:86.0-chromedriver-86.0-20201009
 
 # A common 14'' laptop resolution is 1920x1200, so this should work
 # both on wide screens and not-too-small-screen laptops:
