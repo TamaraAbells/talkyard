@@ -76,7 +76,7 @@ class LoginController @Inject()(cc: ControllerComponents, edContext: EdContext)
     COULD // find out if already logged in with enough perms, then go to `path` directly instead.
 
     dieIfAssetsMissingIfDevTest()
-    Ok(views.html.login.loginPopup(
+    Ok(views.html.authn.authnPage(
       SiteTpi(apiReq),
       mode = loginReason,
       serverAddress = s"//${apiReq.host}",  // try to remove
@@ -103,10 +103,10 @@ class LoginController @Inject()(cc: ControllerComponents, edContext: EdContext)
     * is doing in the main window (e.g. having expanded / collapsed threads,
     * maybe started composing a reply) won't disappear.
     */
-  def showLoginPopup(mode: String, returnToUrl: String): Action[Unit] =
+  def showLoginPopup(mode: St, returnToUrl: St): Action[U] =
         GetActionAllowAnyoneRateLimited(
           RateLimits.NoRateLimits, avoidCookies = mode == EmbCommentsModeStr) { request =>
-    Ok(views.html.login.loginPopup(
+    Ok(views.html.authn.authnPage(
       SiteTpi(request),
       mode = mode,
       serverAddress = s"//${request.host}",  // try to remove
@@ -118,12 +118,12 @@ class LoginController @Inject()(cc: ControllerComponents, edContext: EdContext)
   /** Clears login related cookies and OpenID and OpenAuth stuff, unsubscribes
     * from any event channel.
     */
-  def logout(currentUrlPath: Option[String]): Action[Unit] = GetActionAllowAnyone { request =>
+  def logout(currentUrlPath: Opt[St]): Action[U] = GetActionAllowAnyone { request =>
     doLogout(request, redirectIfMayNotSeeUrlPath = currentUrlPath)
   }
 
 
-  def doLogout(request: GetRequest, redirectIfMayNotSeeUrlPath: Option[String]): Result = {
+  def doLogout(request: GetRequest, redirectIfMayNotSeeUrlPath: Opt[St]): Result = {
     import request.{dao, requester}
 
     requester foreach { theRequester =>
