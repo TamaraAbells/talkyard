@@ -19,6 +19,7 @@ interface TestSettings {
   sloooooooow?: true;
   headless?: boolean;
   numBrowsers: number;
+  specFileRetries?: Nr;
   staticServer8080?: boolean;
   staticServerGatsbyNew8000?: boolean;
   staticServerGatsbyOld8000?: boolean;

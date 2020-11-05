@@ -328,7 +328,7 @@ const config: WebdriverIO.Config = {
   framework: 'mocha',
 
   // The number of times to retry the entire specfile when it fails as a whole
-  // specFileRetries: 1,
+  specFileRetries: settings.specFileRetries,
 
   // Whether or not retried specfiles should be retried immediately or deferred to the end of the queue
   // specFileRetriesDeferred: false,

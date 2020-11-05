@@ -36,6 +36,8 @@ settings.newSiteDomain = settings.newSiteDomain || settings.host;
 
 settings.reuseOldSite = settings.reuseOldSite || args.reuse;
 
+settings.specFileRetries = args.retry;
+
 settings.debugEachStep = args.debugEachStep || args.des;
 settings.debugBefore = args.debugBefore || args.db;
 // dant = debug afterwards, no timeout

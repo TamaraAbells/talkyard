@@ -46,7 +46,7 @@ function spawnInBackground(cmdMaybeArgs: St, anyArgs?: St[]): ChildProcess { // 
     args = cmdAndArgs.slice(1);
   }
 
-  console.log(`\n\nSpawn bg:  ${cmd} ${args.join(' ')}\n`);
+  console.log(`\NSPAWN BG:  ${cmd} ${args.join(' ')}\n`);
   //const stdio = opts.pipeStdIn ? ['pipe', process.stdout, process.stderr] : 'inherit';
   const childProcess = _spawnAsync(cmd, args, { detached: true, stdio: 'inherit' });
   //childProcess.stdout.pipe(process.stdout);
@@ -64,7 +64,7 @@ function spawnInForeground(cmdMaybeArgs: St, anyArgs?: St[]): ExitCode {
     args = cmdAndArgs.slice(1);
   }
 
-  console.log(`\n\nSpawn fg:  ${cmd} ${args.join(' ')}\n`);
+  console.log(`\nSPAWN FG:  ${cmd} ${args.join(' ')}\n`);
   // stdio 'inherit' makes the child process write directly to our stdout,
   // so colored output and CTRL+C works.
   const result = _spawnSync(cmd, args, { stdio: 'inherit' });
@@ -84,11 +84,41 @@ console.log(`cmdLineArgs: ${JSON.stringify(cmdLineArgs)}`);
 console.log(`process.argv: ${JSON.stringify(process.argv)}`);
 
 
-
-if (mainCmd === 'justwatch') {
-  spawnInForeground('make watch'); // 'InForeground');
+if (mainCmd === 'ps') {
+  spawnInForeground('docker-compose ps');
   process.exit(0);
 }
+
+
+if (mainCmd === 'logslive') {
+  spawnInForeground('docker-compose logs -f --tail 0');
+  process.exit(0);
+}
+
+
+if (mainCmd === 'logsrecentlive') {
+  spawnInForeground('docker-compose logs -f --tail 555');
+  process.exit(0);
+}
+
+
+if (mainCmd === 'logsold') {
+  spawnInForeground('docker-compose logs');
+  process.exit(0);
+}
+
+
+if (mainCmd === 'nodejs') {
+  spawnInForeground('docker-compose run --rm nodejs ' + manySubCmds.join(' '));
+  process.exit(0);
+}
+
+
+if (mainCmd === 'justwatch') {
+  spawnInForeground('make watch');
+  process.exit(0);
+}
+
 
 if (mainCmd === 'watchup') {
   const watchChildProcess = spawnInBackground('make watch');
@@ -103,10 +133,12 @@ if (mainCmd === 'watchup') {
   process.exit(0);
 }
 
+
 if (mainCmd === 'kill') {
   spawnInForeground('make dead');
   process.exit(0);
 }
+
 
 if (mainCmd === 'make') {
   switch (subCmd) {
@@ -276,6 +308,31 @@ async function runE2eTests(): Promise<ExitCode> {
   // TODO   Don't run magic time tests in parallel — they mess up the
   // time for each other.
 
+  const serverAndDirByPort: { [portNr: string]: [ChildProcess, St] } = {};
+
+  function startStaticFileServer(portNr: Nr, relDir: St) {
+    const anyOld = serverAndDirByPort[portNr];
+    if (anyOld) {
+      const oldDir = anyOld[1];
+      if (oldDir === relDir) {
+        // Already started.
+        return;
+      }
+      const oldServer: ChildProcess = anyOld[0];
+      oldServer.kill();
+    }
+    const cp = spawnInBackground(`node_modules/.bin/http-server -p${portNr} ${relDir}`);
+    serverAndDirByPort[portNr] = [cp, relDir];
+  }
+
+  function stopStaticFileServer(portNr: Nr) {
+    const anyOld = serverAndDirByPort[portNr];
+    if (anyOld) {
+      const oldServer: ChildProcess = anyOld[0];
+      oldServer.kill();
+    }
+  }
+
   await withSpecsMatching(next, async (specs: St[]): Promise<ExitCode> => {
     //const pipeSpecsToWdio__old =
     //        `echo "${ specs.join('\\n') }" ` +
@@ -308,8 +365,14 @@ async function runE2eTests(): Promise<ExitCode> {
           ...skip2And3Browsers, ...skipAlways];
 
   await withSpecsMatching(next, async (specs: St[]): Promise<Nr> => {
+    // Note: 8080 eighty eighty.
+    startStaticFileServer(8080, 'target/');
     const exitCode = await spawnInForeground('sh', ['-c',
-            pipeSpecsToWdio(specs, '--static-server-8080 --verbose')]);
+            pipeSpecsToWdio(specs,
+              // Doesn't work, why not? Disable via xx. (BADSTCSRV)
+              // The server starts, lisens to 8080, but never replies to anything :-|
+              // Just times out.
+              '-xx-static-server-8080 -xx-verbose')]);
     return exitCode;
   });
 
@@ -318,8 +381,11 @@ async function runE2eTests(): Promise<ExitCode> {
           ...skip2And3Browsers, ...skipAlways];
 
   await withSpecsMatching(next, async (specs: St[]): Promise<Nr> => {
+    startStaticFileServer(8080, 'target/');
     const exitCode = await spawnInForeground('sh', ['-c',
-            pipeSpecsToWdio(specs, '--static-server-8080 --b3c')]);
+            pipeSpecsToWdio(specs, ' --b3c ' +
+              // Doesn't work (BADSTCSRV)
+              '-xx-static-server-8080')]);
     return exitCode;
   });
 
@@ -328,25 +394,40 @@ async function runE2eTests(): Promise<ExitCode> {
           ...skipAlways];
 
   await withSpecsMatching(next, async (specs: St[]): Promise<Nr> => {
+    startStaticFileServer(8080, 'target/');
     const exitCode = await spawnInForeground('sh', ['-c',
-            pipeSpecsToWdio(specs, '--static-server-8080 --2browsers')]);
+            pipeSpecsToWdio(specs, ' --2browsers ' +
+              // Doesn't work (BADSTCSRV)
+              '-xx-static-server-8080')]);
     return exitCode;
   });
 
+    // Note: 8080 eighty eighty.
+  stopStaticFileServer(8080);
 
   next = ['embedded-', 'gatsby', ...skip2And3Browsers, ...skipAlways];
 
   await withSpecsMatching(next, async (specs: St[]): Promise<Nr> => {
+    // Note: 8000 eighty zero zero.
+    startStaticFileServer(8000, 'modules/gatsby-starter-blog/public/');
     const exitCode = await spawnInForeground('sh', ['-c',
-            pipeSpecsToWdio(specs, '--static-server-gatsby-v1-8000')]);
+            pipeSpecsToWdio(specs,
+              // Doesn't work (BADSTCSRV)
+              '-xx-static-server-gatsby-v1-8000')]);
     return exitCode;
   });
 
   await withSpecsMatching(next, async (specs: St[]): Promise<Nr> => {
+    startStaticFileServer(8000, 'modules/gatsby-starter-blog-ed-comments-0.4.4/public/');
     const exitCode = await spawnInForeground('sh', ['-c',
-            pipeSpecsToWdio(specs, '--static-server-gatsby-v1-old-ty-8000')]);
+            pipeSpecsToWdio(specs,
+              // Doesn't work (BADSTCSRV)
+              '-xx-static-server-gatsby-v1-old-ty-8000')]);
     return exitCode;
   });
+
+    // Note: 8000 eighty zero zero.
+  stopStaticFileServer(8000);
 
   return zeroOrFirstErrorCode;
 }
