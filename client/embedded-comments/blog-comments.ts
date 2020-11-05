@@ -88,15 +88,26 @@ const serverOrigin = d.i.commentsServerOrigin;
 // use the same protocol as the blog.
 const iframeIsHttps = serverOrigin.indexOf('http://') === -1;
 const blogIsHttps = location.origin.indexOf('https://') >= 0;
-const insecureContenError = blogIsHttps && !iframeIsHttps;
-const insecureContentErrorMessage = !insecureContenError ? '' : (
+const insecureTyIframeProbl = blogIsHttps && !iframeIsHttps;
+//const insecureBlogProbl = !blogIsHttps && iframeIsHttps;
+
+const insecureSomethingErrMsg = insecureTyIframeProbl ? (
     "PROBLEM: This website uses HTTPS but your Talkyard server uses HTTP. " +
     "Most browsers therefore won't show the Talkyard blog comments iframe, " +
     "and they'll log an 'insecure content blocked' error. " +
-    "— You need to configure your Talkyard server to use HTTPS. [TyEEMBHTTPS]");
-if (insecureContentErrorMessage) {
-  debugLog(insecureContentErrorMessage);
+    "— You need to configure your Talkyard server to use HTTPS. [TyEINSCIFR]") : (
+      /*
+        insecureBlogProbl ? (
+    "PROBLEM: This website uses HTTP but your Talkyard server uses HTTPS. " +
+    "This browser therefore might not show the Talkyard blog comments iframe. " +
+    "— If this is your site, what if you get a LetsEncrypt cert? [TyEINSCBLG]"
+        ) : */  '');
+
+if (insecureSomethingErrMsg) {
+  debugLog(insecureSomethingErrMsg);
 }
+
+iframeIsHttps && !blogIsHttps // then Ty probably won't load
 
 var oneTimeLoginSecret;
 var postNrToFocus;
@@ -233,6 +244,7 @@ function loadCommentsCreateEditor() {
   commentsIframe = Bliss.create('iframe', {
     id: 'ed-embedded-comments',
     name: 'edComments',
+    className: 'ty_ComsIfr',
     // A title attr, for better accessibility. See: https://www.w3.org/TR/WCAG20-TECHS/H64.html
     title: discussionTitle || "Comments",
     src: commentsIframeUrl,
@@ -254,9 +266,13 @@ function loadCommentsCreateEditor() {
   Bliss.start(commentsIframe, commentsElem);
   debugLog("inserted commentsIframe");
 
-  if (insecureContentErrorMessage) {
+  if (insecureSomethingErrMsg) {
+    // If insecureTyIframeProbl, then for sure the comments won't load.
+    // If however insecureBlogProbl, then *maybe* they'll load?
+    // COULD set a timeout and unhide the error after a short while?
     const insecureContentErrorElem = Bliss.create('div', {
-      textContent: insecureContentErrorMessage,
+      textContent: insecureSomethingErrMsg,
+      className: 'ty_Problem',
       style: {
         padding: '20px',
         margin: '20px 10px',
@@ -264,6 +280,7 @@ function loadCommentsCreateEditor() {
         background: 'hsl(0,100%,33%)', // dark red
         color: 'yellow',
         fontWeight: 'bold',
+        // display: insecureTyIframeProbl ? undefined : 'none',
       },
     });
     Bliss.start(insecureContentErrorElem, commentsElem);
@@ -271,14 +288,15 @@ function loadCommentsCreateEditor() {
 
   var loadingCommentsElem = Bliss.create('p', {
     id: 'ed-loading-comments',
+    className: 'ty_Ldng ty_Ldng-Coms',
     text: "Loading comments ..."
   });
 
   Bliss.start(loadingCommentsElem, commentsElem);
 
-  // color ... this div?
   editorWrapper = Bliss.create('div', {
     id: 'ed-editor-wrapper',
+    className: 'ty_EdrIfrW',
     style: {
       display: 'none',
       width: '100%',
@@ -313,6 +331,7 @@ function loadCommentsCreateEditor() {
   editorIframe = Bliss.create('iframe', {
     id: 'ed-embedded-editor',
     name: 'edEditor',
+    className: 'ty_EdrIfr',
     style: {
       display: 'block', // otherwise 'inline' —> some blank space below, because of descender spacing?
       padding: 0,
